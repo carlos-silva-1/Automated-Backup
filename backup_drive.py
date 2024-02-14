@@ -27,7 +27,7 @@ def get_folder_id(drive_service, folder_name):
 
 def get_file_id(drive_service, file_name):
     query = f"name='{file_name}' and trashed=false"
-    response = drive_service.files().list(q=query, fields='files(id)').execute()
+    response = drive_service.files().list(q=query).execute()
     files = response.get('files', [])
     if files:
         return files[0]['id']
@@ -44,6 +44,14 @@ def create_file_on_drive(drive_service, filename, folder_id, media):
     }
     drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
 
+def create_dir_on_drive(drive_service, dir_name, parent_dir_id):
+    folder_metadata = {
+        'name': dir_name,
+        'mimeType': 'application/vnd.google-apps.folder',
+        'parents': [parent_dir_id]
+    }
+    folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
+
 def upload_file(drive_service, filename, drive_folder_id, path):
     media = MediaFileUpload(os.path.join(path, filename), resumable=True)
     existing_file_id = get_file_id(drive_service, filename)
@@ -52,13 +60,15 @@ def upload_file(drive_service, filename, drive_folder_id, path):
     else:
         create_file_on_drive(drive_service, filename, drive_folder_id, media)
 
+# when passing args to a lower level in the recursion, do you always pass drive_folder_id?
+# or should it be the id of some other folder?
 def upload_files_in_folder(drive_service, drive_folder_id, folder_path):
     for entry in os.listdir(folder_path):
         if os.path.isdir(os.path.join(folder_path, entry)):
-            # check if folder already exists on drive
-            # if it does, gets its id and passes it to upload_files_in_folder
-            # else, creates folder, gets its id and passes it to upload_files_in_folder
-            upload_files_in_folder(drive_service, drive_folder_id, os.path.join(folder_path, entry))
+            if not folder_exists(drive_service, entry):
+                create_dir_on_drive(drive_service, entry, drive_folder_id)
+            subfolder_id = get_folder_id(drive_service, entry)
+            upload_files_in_folder(drive_service, subfolder_id, os.path.join(folder_path, entry))
         else:
             upload_file(drive_service, entry, drive_folder_id, folder_path)
 
@@ -67,7 +77,6 @@ def upload_files_in_folder(drive_service, drive_folder_id, folder_path):
 def backup_to_folder_in_drive(drive_service, drive_folder_name, backup_folder_path):
     if not folder_exists(drive_service, drive_folder_name):
         pass
-        # create_folder_on_drive(drive_service, folder_name)
         # CHANGE FROM CREATING FOLDER TO LAUNCHING AN ALERT
     else:
         drive_folder_id = get_folder_id(drive_service, drive_folder_name)
