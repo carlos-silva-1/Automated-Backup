@@ -1,5 +1,7 @@
 config.py
 todo
+setup_backup_schedule.sh
+test_schedule.sh
 
 # service account credentials
 core-depth-414122-fc822c123048.json

@@ -5,12 +5,10 @@ from googleapiclient.http import MediaFileUpload
 from config import BACKUP_FOLDER_PATH, CREDS_PATH, SCOPES, DRIVE_FOLDER_NAME
 from google.oauth2 import service_account
 import notify2
+import logging
 
-# Google Drive service
+# Allows interaction with google Drive API
 DRIVE_SERVICE = None
-
-def fetch_oauth_credentials():
-    return service_account.Credentials.from_service_account_file(CREDS_PATH)
 
 def folder_exists_on_drive(folder_name):
     folder_id = get_folder_id(folder_name)
@@ -82,22 +80,30 @@ def upload_files_in_folder(drive_folder_id, folder_path):
         else:
             upload_file(entry, drive_folder_id, folder_path)
 
-# Creates an os notification
-def alert(message):
-    notify2.init("Alert")
-    notification = notify2.Notification("Alert", message)
-    notification.show()
-
 # Performs the backup of the local folder located at backup_folder_path to the 
 # folder named drive_folder_name to Google Drive
 def backup_to_folder_in_drive(drive_folder_name, backup_folder_path):
     if not folder_exists_on_drive(drive_folder_name):
-        alert('Error: the destination folder does not exist on the drive')
+        logging.error('THE BACKUP WAS NOT PERFORMED!') 
+        logging.error(f'A folder named {drive_folder_name} must exist in the drive prior to the execution of this script.') 
     else:
         drive_folder_id = get_folder_id(drive_folder_name)
         upload_files_in_folder(drive_folder_id, backup_folder_path)
 
+def fetch_oauth_credentials():
+    creds = None
+    try:
+        creds = service_account.Credentials.from_service_account_file(CREDS_PATH)
+    except FileNotFoundError as e:
+        logging.exception(f'Credentials to authenticate the account with Google API were not found. The script expected to find them at {CREDS_PATH}')
+        raise Exception() # Stops further execution
+    return creds
+
+def setup_logger():
+    logging.basicConfig(filename='backup.log', level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
+
 if __name__ == '__main__':
+    setup_logger()
     creds = fetch_oauth_credentials()
     DRIVE_SERVICE = build('drive', 'v3', credentials=creds)
     backup_to_folder_in_drive(DRIVE_FOLDER_NAME, BACKUP_FOLDER_PATH)
