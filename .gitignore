@@ -1,6 +1,4 @@
-config.py
-todo
-setup_backup_schedule.sh
+my_config.py
 test_schedule.sh
 
 # service account credentials
